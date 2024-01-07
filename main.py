@@ -1,21 +1,21 @@
 import sys,os
-from PyQt6.QtWidgets import QApplication, QMainWindow, QPushButton, QListWidget, QRadioButton, QFileDialog, QMessageBox, QCheckBox
+from PyQt6.QtWidgets import QApplication, QMainWindow, QPushButton, QListWidget, QRadioButton, QFileDialog, QMessageBox, QCheckBox, QProgressBar
 from PyQt6.QtGui import QIcon
 from functions import list_folders, list_files, get_layers, getcurrentime, check_files, excel_sheet_check
-#from PyQt6.uic import loadUi
+from PyQt6.uic import loadUi
 from mainwindow import Ui_MainWindow
-from draw import multi_analysis, draw_test, multi_deprem, draw_deprem, multi_layer, get_sae, check_sonuclar_folder
+from draw import multi_analysis_with_progress_bar, draw_test, multi_deprem_with_progress_bar, draw_deprem, multi_layer_with_progress_bar, get_sae, check_sonuclar_folder
 
 class MyWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.ui = Ui_MainWindow()
-        self.ui.setupUi(self)
-    
-        icon_path = os.path.join(sys._MEIPASS, 'icon.png')
-        self.setWindowIcon(QIcon(icon_path))
-        #self.setWindowIcon(QIcon("icon.png"))
-        self.setWindowTitle("DeepSoil Analiz")
+        loadUi("main.ui", self)
+
+        #self.ui = Ui_MainWindow()
+        #self.ui.setupUi(self)
+        #icon_path = os.path.join(sys._MEIPASS, 'icon.ico')
+        self.setWindowIcon(QIcon("icon.ico"))
+        self.setWindowTitle("DeepSoil Analysis")
         self.initUiElements()
         self.interactions()
 
@@ -33,6 +33,7 @@ class MyWindow(QMainWindow):
         self.sae_ilica = self.findChild(QCheckBox,"checkBox_2")
         self.sae_yarimca = self.findChild(QCheckBox,"checkBox_3")
         self.checkbox_input_motion = self.findChild(QCheckBox,"checkBox_4")
+        self.progress = self.findChild(QProgressBar,"progressBar")
 
     def interactions(self):
         self.trigger_radio()
@@ -72,7 +73,7 @@ class MyWindow(QMainWindow):
         
     def trigger_radio(self):
         if self.radio_analiz.isChecked():
-            QMessageBox.information(self, "Bilgi", "Analiz Modundasınız.\nPeriod.xlsx Dosyası Exe İle Aynı Dizinde Olmalıdır.")
+            QMessageBox.information(self, "Information", "You are in analysis mode.")
             self.checkbox_input_motion.setDisabled(False)
             self.deprem.clear()
             self.layer.clear()
@@ -80,7 +81,7 @@ class MyWindow(QMainWindow):
             self.deprem.setSelectionMode(QListWidget.SelectionMode.SingleSelection)
             self.layer.setSelectionMode(QListWidget.SelectionMode.SingleSelection)  
         elif self.radio_deprem.isChecked():
-            QMessageBox.information(self, "Bilgi", "Deprem Modundasınız, Bu modda yalnızca bir analiz, birden çok deprem, ve bir layer seçebilirsiniz.")
+            QMessageBox.information(self, "Information", "You are in Input Mode.")
             self.checkbox_input_motion.setDisabled(True)
             self.deprem.clear()
             self.layer.clear()
@@ -88,7 +89,7 @@ class MyWindow(QMainWindow):
             self.deprem.setSelectionMode(QListWidget.SelectionMode.MultiSelection)
             self.layer.setSelectionMode(QListWidget.SelectionMode.SingleSelection)  
         elif self.radio_layer.isChecked():
-            QMessageBox.information(self, "Bilgi", "Layer Modundasınız, Bu modda yalnızca bir analiz, bir deprem, birden çok layer seçebilirsiniz.")
+            QMessageBox.information(self, "Information", "You are in Layer Mode.")
             self.checkbox_input_motion.setDisabled(False)
             self.deprem.clear()
             self.layer.clear()
@@ -96,7 +97,7 @@ class MyWindow(QMainWindow):
             self.deprem.setSelectionMode(QListWidget.SelectionMode.SingleSelection)
             self.layer.setSelectionMode(QListWidget.SelectionMode.MultiSelection)  
         else:
-            QMessageBox.critical(self,"HATA","MOD SEÇİMİNDE BİR HATA OLUŞTU") 
+            QMessageBox.critical(self,"Error","Error in Mode Selection") 
 
     def browsedir(self):
         check_sonuclar_folder()
@@ -130,11 +131,11 @@ class MyWindow(QMainWindow):
                 if excel_sheet_check(f"{basedir}/{item.text()}/{deprem}",layer):
                     dirs.append(f"{basedir}/{item.text()}")     
                 else:
-                    QMessageBox.critical(self, "Hata", f"{basedir}/{item.text()} Dizininde {deprem} dosyasında {layer} yok ANALİZ BAŞLAMAYACAK.")
+                    QMessageBox.critical(self, "Error", f"Selected Layer Not Found: Dir: {basedir}/{item.text()} Input: {deprem}.\n Analysis Will Not Start.")
                     return
 
             else:
-                 QMessageBox.critical(self, "Hata", f"{basedir}/{item.text()} Dizininde {deprem} dosyası yok ANALİZ BAŞLAMAYACAK.")
+                 QMessageBox.critical(self, "Hata", f"Selected Input Not Found: Dir: {basedir}/{item.text()} Input: {deprem}.\n Analysis Will Not Start.")
                  return
     
                        
@@ -142,7 +143,7 @@ class MyWindow(QMainWindow):
             labels.append(label.text())
         sae_values, sae_labels = self.if_checkbox()
         
-        y, input_motion = multi_analysis(folders=dirs, deprem=deprem, layer=layer, column="PSA (g)")
+        y, input_motion = multi_analysis_with_progress_bar(folders=dirs, deprem=deprem, layer=layer, column="PSA (g)")
         y.extend(sae_values)
         labels.extend(sae_labels)
         if self.checkbox_input_motion.isChecked():
@@ -160,7 +161,7 @@ class MyWindow(QMainWindow):
         secili_depremler = [item.text() for item in depremler]
         labels = [((item.text()).replace("Results_profile_0_motion_A-", "")).replace(".xlsx", "") for item in depremler]
         sea_values, sea_labels = self.if_checkbox()                         
-        sonuclar = multi_deprem(folder_path=folder, file_names=secili_depremler, sheet_name=layer, column_name="PSA (g)")
+        sonuclar = multi_deprem_with_progress_bar(folder_path=folder, file_names=secili_depremler, sheet_name=layer, column_name="PSA (g)")
         sonuclar.extend(sea_values)
         labels.extend(sea_labels)
         draw_deprem(y_values=sonuclar, graphname=getcurrentime(), title=f"Analiz: {dizin}, Layer: {layer}", labels=labels)
@@ -174,14 +175,14 @@ class MyWindow(QMainWindow):
         secili_layerlar = [item.text() for item in layerlar]
         labels = [item.text() for item in layerlar]
         if self.checkbox_input_motion.isChecked():                            
-            sonuclar = multi_layer(folder=folder, sheet_name=secili_layerlar, column_name="PSA (g)",motion=True)
+            sonuclar = multi_layer_with_progress_bar(folder=folder, sheet_name=secili_layerlar, column_name="PSA (g)",motion=True)
             labels.append("İnput Motion")
         else:
-            sonuclar = multi_layer(folder=folder, sheet_name=secili_layerlar, column_name="PSA (g)")                
+            sonuclar = multi_layer_with_progress_bar(folder=folder, sheet_name=secili_layerlar, column_name="PSA (g)")                
         sea_values, sea_labels = self.if_checkbox()
         sonuclar.extend(sea_values)
         labels.extend(sea_labels)
-        draw_deprem(y_values=sonuclar, graphname=getcurrentime(), title=f"Analiz: {dizin}, Deprem: {deprem}", labels=labels)
+        draw_deprem(y_values=sonuclar, graphname=getcurrentime(), title=f"Analysis: {dizin}, Input: {deprem}", labels=labels)
        
 
     def init_analiz(self):
@@ -206,7 +207,7 @@ class MyWindow(QMainWindow):
         if list_widget.selectedItems():
             return list_widget.selectedItems()[0].text()
         else:
-            QMessageBox.warning(self, "Uyarı", f"{list_widget.objectName()} seçilmedi.")
+            QMessageBox.warning(self, "Warning", f"{list_widget.objectName()} not selected.")
             return ""
 
 def main():

@@ -5,7 +5,7 @@ a = Analysis(
     ['main.py'],
     pathex=[],
     binaries=[],
-    datas=[('icon.png','.')],
+    datas=[('icon.ico','.')],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
@@ -25,13 +25,13 @@ exe = EXE(
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,
-    console=True,
+    console=False,
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon='icon.png',
+    icon='icon.ico',
 )
 coll = COLLECT(
     exe,
@@ -40,5 +40,5 @@ coll = COLLECT(
     strip=False,
     upx=True,
     upx_exclude=[],
-    name='DeepSoil Graph',
+    name='DeepSoil Graphic Draw',
 )
